@@ -1,0 +1,26 @@
+diff --git a/contrib/mkimage-debian.sh b/contrib/mkimage-debian.sh
+index c1abd4f..7dcf6e3 100755
+--- a/contrib/mkimage-debian.sh
++++ b/contrib/mkimage-debian.sh
+@@ -34,7 +34,7 @@ set -x
+ 
+ # bootstrap
+ mkdir -p "$target"
+-sudo debootstrap --verbose --variant="$variant" --include="$include" "$suite" "$target" "$mirror"
++sudo debootstrap --verbose --arch=armhf --keyring=/root/.gnupg/pubring.gpg --variant="$variant" --include="$include" "$suite" "$target" "$mirror"
+ 
+ cd "$target"
+ 
+diff --git a/server.go b/server.go
+index 27d1968..c6eeb37 100644
+--- a/server.go
++++ b/server.go
+@@ -1303,7 +1303,7 @@ func (srv *Server) ContainerCopy(name string, resource string, out io.Writer) er
+ }
+ 
+ func NewServer(flGraphPath string, autoRestart, enableCors bool, dns ListOpts) (*Server, error) {
+-	if runtime.GOARCH != "amd64" {
++	if runtime.GOARCH != "amd64" && runtime.GOARCH != "arm" {
+ 		log.Fatalf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
+ 	}
+ 	runtime, err := NewRuntime(flGraphPath, autoRestart, dns)
