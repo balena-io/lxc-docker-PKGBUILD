@@ -2,37 +2,53 @@
 
 buildarch=18
 
-pkgname='lxc-docker'
-pkgver=0.6.4
-pkgrel=2
-pkgdesc="Docker - the Linux container runtime"
+pkgname='docker'
+pkgver=0.7.2
+pkgrel=1
+pkgdesc='Pack, ship and run any application as a lightweight container'
 arch=('arm armv6h')
-url="https://github.com/dotcloud/docker"
-license=('Apache License 2.0')
-makedepends=('go>=1.1.2')
-depends=('lxc' 'aufs3-util')
-provides=('lxc-docker')
+url='http://www.docker.io/'
+license=('Apache')
+depends=('bridge-utils' 'iproute2' 'device-mapper' 'lxc' 'sqlite' 'systemd')
+makedepends=('docker' 'patch')
 options=('!strip')
-source=("${pkgname}-${pkgver}.tar.gz::https://codeload.github.com/dotcloud/docker/tar.gz/v${pkgver}"
-        'docker-arm-v0.6.4.patch')
-
-md5sums=('c70bb4f56ef1fee069964a5f8c7c26f9'
-         '06f0e60138fb808f9c3f76290b2fcb90')
+optdepends=(
+	'aufs3-util: AuFS backend support'
+)
+install=$pkgname.install
+source=(
+	"git+https://github.com/dotcloud/docker.git#tag=v$pkgver"
+    'docker-arm-v0.7.2.patch'
+    'docker.install'
+    'docker.service'
+)
+md5sums=('SKIP'
+         'e89c02ce9bb54d4bfe623607da67e86d'
+         '64ebb2c81553442656ef5fea90d6568e'
+         '3f7ccab915fb1942f06e18946c2811d2')
 
 prepare() {
-	mkdir -p "${srcdir}/go/src/github.com/dotcloud/"
-	mv "${srcdir}/docker-${pkgver}" "${srcdir}/go/src/github.com/dotcloud/docker"
-	cd "${srcdir}/go/src/github.com/dotcloud/docker"
-	patch -p1 <"${srcdir}/docker-arm-v0.6.4.patch"
+	cd "${srcdir}/docker"
+	patch -p1 <"${srcdir}/docker-arm-v0.7.2.patch"
+	make build
 }
 
 build() {
-	cd "${srcdir}/go/src/github.com/dotcloud/docker"
-	GOPATH="${srcdir}/go:${srcdir}/go/src/github.com/dotcloud/docker/vendor"
-	LDFLAGS="-X main.VERSION $pkgver -d -w"
-	GOARCH=arm go build -v -o "${srcdir}/docker" -ldflags "$LDFLAGS" ./docker
+	cd "${srcdir}/docker"
+	make binary
+}
+
+check() {
+	cd "${srcdir}/docker"
+	make test
 }
 
 package() {
-	install -D -m 755 "$srcdir/docker" "$pkgdir/usr/bin/docker"
+	cd "${srcdir}/docker"
+	install -Dm755 "bundles/$pkgver/binary/docker-$pkgver" "$pkgdir/usr/bin/docker"
+	# completion
+	install -Dm644 "contrib/completion/bash/docker" "$pkgdir/usr/share/bash-completion/completions/docker"
+	install -Dm644 "contrib/completion/zsh/_docker" "$pkgdir/usr/share/zsh/site-functions/_docker"
+	# systemd
+	install -Dm644 "contrib/init/systemd/docker.service" "$pkgdir/usr/lib/systemd/system/docker.service"
 }

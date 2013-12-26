@@ -1,0 +1,31 @@
+diff --git a/Dockerfile b/Dockerfile
+index b06c655..29715e0 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -24,11 +24,11 @@
+ #
+ 
+ docker-version	0.6.1
+-FROM	ubuntu:12.04
++FROM	resin/rpi-raspbian:jessie
+ MAINTAINER	Solomon Hykes <solomon@dotcloud.com>
+ 
+ # Build dependencies
+-RUN	echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' > /etc/apt/sources.list
++# RUN	echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' > /etc/apt/sources.list
+ RUN	apt-get update
+ RUN	apt-get install -y -q curl
+ RUN	apt-get install -y -q git
+diff --git a/engine/engine.go b/engine/engine.go
+index 5da0a97..f468a59 100644
+--- a/engine/engine.go
++++ b/engine/engine.go
+@@ -60,7 +60,7 @@ func (eng *Engine) Register(name string, handler Handler) error {
+ // behavior.
+ func New(root string) (*Engine, error) {
+ 	// Check for unsupported architectures
+-	if runtime.GOARCH != "amd64" {
++	if runtime.GOARCH != "amd64" && runtime.GOARCH != "arm" {
+ 		return nil, fmt.Errorf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
+ 	}
+ 	// Check for unsupported kernel versions
