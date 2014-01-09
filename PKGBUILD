@@ -3,7 +3,7 @@
 buildarch=18
 
 pkgname='docker'
-pkgver=0.7.2
+pkgver=0.7.5
 pkgrel=1
 pkgdesc='Pack, ship and run any application as a lightweight container'
 arch=('arm armv6h')

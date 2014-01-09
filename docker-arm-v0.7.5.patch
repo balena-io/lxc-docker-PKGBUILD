@@ -1,0 +1,53 @@
+diff --git a/Dockerfile b/Dockerfile
+index 9da4e8f..20c96ea 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -24,17 +24,18 @@
+ #
+ 
+ docker-version	0.6.1
+-FROM	stackbrew/ubuntu:12.04
++FROM	resin/rpi-raspbian:jessie
+ MAINTAINER	Tianon Gravi <admwiggin@gmail.com> (@tianon)
+ 
+ # Add precise-backports to get s3cmd >= 1.1.0 (so we get ENV variable support in our .s3cfg)
+-RUN	echo 'deb http://archive.ubuntu.com/ubuntu precise-backports main universe' > /etc/apt/sources.list.d/backports.list
++# RUN	echo 'deb http://archive.ubuntu.com/ubuntu precise-backports main universe' > /etc/apt/sources.list.d/backports.list
+ 
+ # Packaged dependencies
+ RUN	apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
+ 	apt-utils \
+ 	aufs-tools \
+ 	build-essential \
++	ca-certificates \
+ 	curl \
+ 	dpkg-sig \
+ 	git \
+@@ -63,10 +64,10 @@ ENV	PATH	/usr/local/go/bin:$PATH
+ ENV	GOPATH	/go:/go/src/github.com/dotcloud/docker/vendor
+ RUN	cd /usr/local/go/src && ./make.bash --no-clean 2>&1
+ 
+-# Compile Go for cross compilation
+-ENV	DOCKER_CROSSPLATFORMS	darwin/amd64 darwin/386
+-# TODO add linux/386 and linux/arm
+-RUN	cd /usr/local/go/src && bash -xc 'for platform in $DOCKER_CROSSPLATFORMS; do GOOS=${platform%/*} GOARCH=${platform##*/} ./make.bash --no-clean 2>&1; done'
++# # Compile Go for cross compilation
++# ENV	DOCKER_CROSSPLATFORMS	darwin/amd64 darwin/386
++# # TODO add linux/386 and linux/arm
++# RUN	cd /usr/local/go/src && bash -xc 'for platform in $DOCKER_CROSSPLATFORMS; do GOOS=${platform%/*} GOARCH=${platform##*/} ./make.bash --no-clean 2>&1; done'
+ 
+ # Grab Go's cover tool for dead-simple code coverage testing
+ RUN	go get code.google.com/p/go.tools/cmd/cover
+diff --git a/engine/engine.go b/engine/engine.go
+index ad830ce..d73d0b8 100644
+--- a/engine/engine.go
++++ b/engine/engine.go
+@@ -61,7 +61,7 @@ func (eng *Engine) Register(name string, handler Handler) error {
+ // behavior.
+ func New(root string) (*Engine, error) {
+ 	// Check for unsupported architectures
+-	if runtime.GOARCH != "amd64" {
++	if runtime.GOARCH != "amd64" && runtime.GOARCH != "arm" {
+ 		return nil, fmt.Errorf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
+ 	}
+ 	// Check for unsupported kernel versions
