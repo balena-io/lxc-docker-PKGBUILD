@@ -18,7 +18,7 @@ optdepends=(
 install=$pkgname.install
 source=(
 	"git+https://github.com/dotcloud/docker.git#tag=v$pkgver"
-    'docker-arm-v0.7.2.patch'
+    "docker-arm-v$pkgver.patch"
     'docker.install'
     'docker.service'
 )
@@ -29,7 +29,7 @@ md5sums=('SKIP'
 
 prepare() {
 	cd "${srcdir}/docker"
-	patch -p1 <"${srcdir}/docker-arm-v0.7.2.patch"
+	patch -p1 <"${srcdir}/docker-arm-v$pkgver.patch"
 	make build
 }
 
