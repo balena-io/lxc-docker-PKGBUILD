@@ -10,7 +10,7 @@ arch=('arm armv6h')
 url='http://www.docker.io/'
 license=('Apache')
 depends=('bridge-utils' 'iproute2' 'device-mapper' 'lxc' 'sqlite' 'systemd')
-makedepends=('docker' 'patch')
+makedepends=('docker' 'patch' 'make')
 options=('!strip')
 optdepends=(
 	'aufs3-util: AuFS backend support'
