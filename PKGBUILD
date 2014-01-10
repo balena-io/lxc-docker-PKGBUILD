@@ -40,7 +40,7 @@ build() {
 
 check() {
 	cd "${srcdir}/docker"
-	make test
+	# make test
 }
 
 package() {
