@@ -1,0 +1,363 @@
+diff --git a/Dockerfile b/Dockerfile
+index 8eb2459..869cbcb 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -24,7 +24,7 @@
+ #
+ 
+ docker-version	0.6.1
+-FROM	ubuntu:13.10
++FROM	resin/rpi-raspbian:jessie
+ MAINTAINER	Tianon Gravi <admwiggin@gmail.com> (@tianon)
+ 
+ # Packaged dependencies
+@@ -34,6 +34,7 @@ RUN	apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
+ 	automake \
+ 	btrfs-tools \
+ 	build-essential \
++	ca-certificates \
+ 	curl \
+ 	dpkg-sig \
+ 	git \
+@@ -67,11 +68,11 @@ ENV	PATH	/usr/local/go/bin:$PATH
+ ENV	GOPATH	/go:/go/src/github.com/dotcloud/docker/vendor
+ RUN	cd /usr/local/go/src && ./make.bash --no-clean 2>&1
+ 
+-# Compile Go for cross compilation
+-ENV	DOCKER_CROSSPLATFORMS	linux/386 linux/arm darwin/amd64 darwin/386
+-# (set an explicit GOARM of 5 for maximum compatibility)
+-ENV	GOARM	5
+-RUN	cd /usr/local/go/src && bash -xc 'for platform in $DOCKER_CROSSPLATFORMS; do GOOS=${platform%/*} GOARCH=${platform##*/} ./make.bash --no-clean 2>&1; done'
++# # Compile Go for cross compilation
++# ENV	DOCKER_CROSSPLATFORMS	linux/386 linux/arm darwin/amd64 darwin/386
++# # (set an explicit GOARM of 5 for maximum compatibility)
++# ENV	GOARM	5
++# RUN	cd /usr/local/go/src && bash -xc 'for platform in $DOCKER_CROSSPLATFORMS; do GOOS=${platform%/*} GOARCH=${platform##*/} ./make.bash --no-clean 2>&1; done'
+ 
+ # Grab Go's cover tool for dead-simple code coverage testing
+ RUN	go get code.google.com/p/go.tools/cmd/cover
+diff --git a/archive/stat_darwin.go b/archive/stat_darwin.go
+index 3220329..a74a2cd 100644
+--- a/archive/stat_darwin.go
++++ b/archive/stat_darwin.go
+@@ -1,4 +1,4 @@
+-// +build !linux !amd64
++// +build !linux !arm
+ 
+ package archive
+ 
+diff --git a/engine/engine.go b/engine/engine.go
+index ec880b9..5e0dbf9 100644
+--- a/engine/engine.go
++++ b/engine/engine.go
+@@ -60,8 +60,8 @@ func (eng *Engine) Register(name string, handler Handler) error {
+ // behavior.
+ func New(root string) (*Engine, error) {
+ 	// Check for unsupported architectures
+-	if runtime.GOARCH != "amd64" {
+-		return nil, fmt.Errorf("The docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
++	if runtime.GOARCH != "amd64" && runtime.GOARCH != "arm" {
++		return nil, fmt.Errorf("The docker runtime currently only supports arm (not %s). This will change in the future. Aborting.", runtime.GOARCH)
+ 	}
+ 	// Check for unsupported kernel versions
+ 	// FIXME: it would be cleaner to not test for specific versions, but rather
+diff --git a/execdriver/lxc/lxc_init_linux.go b/execdriver/lxc/lxc_init_linux.go
+index 7288f58..312f6d5 100644
+--- a/execdriver/lxc/lxc_init_linux.go
++++ b/execdriver/lxc/lxc_init_linux.go
+@@ -1,4 +1,4 @@
+-// +build amd64
++// +build arm
+ 
+ package lxc
+ 
+diff --git a/execdriver/lxc/lxc_init_unsupported.go b/execdriver/lxc/lxc_init_unsupported.go
+index d68cb91..0fdf3ba 100644
+--- a/execdriver/lxc/lxc_init_unsupported.go
++++ b/execdriver/lxc/lxc_init_unsupported.go
+@@ -1,4 +1,4 @@
+-// +build !linux !amd64
++// +build !linux !arm
+ 
+ package lxc
+ 
+diff --git a/graphdriver/aufs/mount_linux.go b/graphdriver/aufs/mount_linux.go
+index 6082d9f..cecb03f 100644
+--- a/graphdriver/aufs/mount_linux.go
++++ b/graphdriver/aufs/mount_linux.go
+@@ -1,4 +1,4 @@
+-// +build amd64
++// +build arm
+ 
+ package aufs
+ 
+diff --git a/graphdriver/aufs/mount_unsupported.go b/graphdriver/aufs/mount_unsupported.go
+index 2735624..bc9cde5 100644
+--- a/graphdriver/aufs/mount_unsupported.go
++++ b/graphdriver/aufs/mount_unsupported.go
+@@ -1,4 +1,4 @@
+-// +build !linux !amd64
++// +build !linux !arm
+ 
+ package aufs
+ 
+diff --git a/graphdriver/btrfs/btrfs.go b/graphdriver/btrfs/btrfs.go
+index 592e058..6a8eb08 100644
+--- a/graphdriver/btrfs/btrfs.go
++++ b/graphdriver/btrfs/btrfs.go
+@@ -1,4 +1,4 @@
+-// +build linux,amd64
++// +build linux,arm
+ 
+ package btrfs
+ 
+@@ -30,8 +30,8 @@ func Init(home string) (graphdriver.Driver, error) {
+ 		return nil, err
+ 	}
+ 
+-	if buf.Type != 0x9123683E {
+-		return nil, fmt.Errorf("%s is not a btrfs filesystem", rootdir)
++	if uint(buf.Type) != uint(0x9123683E) {
++		return nil, fmt.Errorf("%s is not a btrfs filesystem %v", rootdir, buf.Type)
+ 	}
+ 
+ 	return &Driver{
+diff --git a/graphdriver/btrfs/dummy_unsupported.go b/graphdriver/btrfs/dummy_unsupported.go
+index 6c44615..258c9b9 100644
+--- a/graphdriver/btrfs/dummy_unsupported.go
++++ b/graphdriver/btrfs/dummy_unsupported.go
+@@ -1,3 +1,3 @@
+-// +build !linux !amd64
++// +build !linux !arm
+ 
+ package btrfs
+diff --git a/graphdriver/devmapper/attach_loopback.go b/graphdriver/devmapper/attach_loopback.go
+index 2333907..fe297af 100644
+--- a/graphdriver/devmapper/attach_loopback.go
++++ b/graphdriver/devmapper/attach_loopback.go
+@@ -1,4 +1,4 @@
+-// +build linux,amd64
++// +build linux,arm
+ 
+ package devmapper
+ 
+diff --git a/graphdriver/devmapper/deviceset.go b/graphdriver/devmapper/deviceset.go
+index 8432d92..3250b4a 100644
+--- a/graphdriver/devmapper/deviceset.go
++++ b/graphdriver/devmapper/deviceset.go
+@@ -1,4 +1,4 @@
+-// +build linux,amd64
++// +build linux,arm
+ 
+ package devmapper
+ 
+diff --git a/graphdriver/devmapper/devmapper.go b/graphdriver/devmapper/devmapper.go
+index 7f83a09..def3ae5 100644
+--- a/graphdriver/devmapper/devmapper.go
++++ b/graphdriver/devmapper/devmapper.go
+@@ -1,4 +1,4 @@
+-// +build linux,amd64
++// +build linux,arm
+ 
+ package devmapper
+ 
+diff --git a/graphdriver/devmapper/devmapper_log.go b/graphdriver/devmapper/devmapper_log.go
+index 18dde7c..6c3a351 100644
+--- a/graphdriver/devmapper/devmapper_log.go
++++ b/graphdriver/devmapper/devmapper_log.go
+@@ -1,4 +1,4 @@
+-// +build linux,amd64
++// +build linux,arm
+ 
+ package devmapper
+ 
+diff --git a/graphdriver/devmapper/devmapper_test.go b/graphdriver/devmapper/devmapper_test.go
+index 3ffa163..9f6f521 100644
+--- a/graphdriver/devmapper/devmapper_test.go
++++ b/graphdriver/devmapper/devmapper_test.go
+@@ -1,4 +1,4 @@
+-// +build linux,amd64
++// +build linux,arm
+ 
+ package devmapper
+ 
+diff --git a/graphdriver/devmapper/devmapper_wrapper.go b/graphdriver/devmapper/devmapper_wrapper.go
+index bf558af..1c92a68 100644
+--- a/graphdriver/devmapper/devmapper_wrapper.go
++++ b/graphdriver/devmapper/devmapper_wrapper.go
+@@ -1,4 +1,4 @@
+-// +build linux,amd64
++// +build linux,arm
+ 
+ package devmapper
+ 
+diff --git a/graphdriver/devmapper/driver.go b/graphdriver/devmapper/driver.go
+index 664899c..6d0a0d4 100644
+--- a/graphdriver/devmapper/driver.go
++++ b/graphdriver/devmapper/driver.go
+@@ -1,4 +1,4 @@
+-// +build linux,amd64
++// +build linux,arm
+ 
+ package devmapper
+ 
+diff --git a/graphdriver/devmapper/driver_test.go b/graphdriver/devmapper/driver_test.go
+index 785845c..5304025 100644
+--- a/graphdriver/devmapper/driver_test.go
++++ b/graphdriver/devmapper/driver_test.go
+@@ -1,4 +1,4 @@
+-// +build linux,amd64
++// +build linux,arm
+ 
+ package devmapper
+ 
+diff --git a/graphdriver/devmapper/ioctl.go b/graphdriver/devmapper/ioctl.go
+index 30bafff..fba7b00 100644
+--- a/graphdriver/devmapper/ioctl.go
++++ b/graphdriver/devmapper/ioctl.go
+@@ -1,4 +1,4 @@
+-// +build linux,amd64
++// +build linux,arm
+ 
+ package devmapper
+ 
+diff --git a/graphdriver/devmapper/mount.go b/graphdriver/devmapper/mount.go
+index 4f19109..f1ba7eb 100644
+--- a/graphdriver/devmapper/mount.go
++++ b/graphdriver/devmapper/mount.go
+@@ -1,4 +1,4 @@
+-// +build linux,amd64
++// +build linux,arm
+ 
+ package devmapper
+ 
+diff --git a/graphdriver/devmapper/sys.go b/graphdriver/devmapper/sys.go
+index 5a9ab4d..8b953f0 100644
+--- a/graphdriver/devmapper/sys.go
++++ b/graphdriver/devmapper/sys.go
+@@ -1,4 +1,4 @@
+-// +build linux,amd64
++// +build linux,arm
+ 
+ package devmapper
+ 
+diff --git a/pkg/graphdb/conn_linux.go b/pkg/graphdb/conn_linux.go
+index 7a1ab8c..ec81f85 100644
+--- a/pkg/graphdb/conn_linux.go
++++ b/pkg/graphdb/conn_linux.go
+@@ -1,4 +1,4 @@
+-// +build amd64
++// +build arm
+ 
+ package graphdb
+ 
+diff --git a/pkg/graphdb/conn_unsupported.go b/pkg/graphdb/conn_unsupported.go
+index c2d6025..7103466 100644
+--- a/pkg/graphdb/conn_unsupported.go
++++ b/pkg/graphdb/conn_unsupported.go
+@@ -1,4 +1,4 @@
+-// +build !linux !amd64
++// +build !linux !arm
+ 
+ package graphdb
+ 
+diff --git a/pkg/mount/flags_linux.go b/pkg/mount/flags_linux.go
+index b7124b1..38ef70f 100644
+--- a/pkg/mount/flags_linux.go
++++ b/pkg/mount/flags_linux.go
+@@ -1,4 +1,4 @@
+-// +build amd64
++// +build arm
+ 
+ package mount
+ 
+diff --git a/pkg/mount/flags_unsupported.go b/pkg/mount/flags_unsupported.go
+index c894efe..d469767 100644
+--- a/pkg/mount/flags_unsupported.go
++++ b/pkg/mount/flags_unsupported.go
+@@ -1,4 +1,4 @@
+-// +build !linux !amd64
++// +build !linux !arm
+ 
+ package mount
+ 
+diff --git a/pkg/mount/mounter_linux.go b/pkg/mount/mounter_linux.go
+index 70b7798..075c761 100644
+--- a/pkg/mount/mounter_linux.go
++++ b/pkg/mount/mounter_linux.go
+@@ -1,4 +1,4 @@
+-// +build amd64
++// +build arm
+ 
+ package mount
+ 
+diff --git a/pkg/mount/mounter_unsupported.go b/pkg/mount/mounter_unsupported.go
+index ee27b35..1b6e955 100644
+--- a/pkg/mount/mounter_unsupported.go
++++ b/pkg/mount/mounter_unsupported.go
+@@ -1,4 +1,4 @@
+-// +build !linux !amd64
++// +build !linux !arm
+ 
+ package mount
+ 
+diff --git a/pkg/netlink/netlink_linux.go b/pkg/netlink/netlink_linux.go
+index 0ea5b4d..6dab224 100644
+--- a/pkg/netlink/netlink_linux.go
++++ b/pkg/netlink/netlink_linux.go
+@@ -1,4 +1,4 @@
+-// +build amd64
++// +build arm
+ 
+ package netlink
+ 
+diff --git a/pkg/netlink/netlink_unsupported.go b/pkg/netlink/netlink_unsupported.go
+index cd796b3..00d2ff7 100644
+--- a/pkg/netlink/netlink_unsupported.go
++++ b/pkg/netlink/netlink_unsupported.go
+@@ -1,4 +1,4 @@
+-// +build !linux !amd64
++// +build !linux !arm
+ 
+ package netlink
+ 
+diff --git a/reflink_copy_linux.go b/reflink_copy_linux.go
+index 74a0cb9..07a3e51 100644
+--- a/reflink_copy_linux.go
++++ b/reflink_copy_linux.go
+@@ -1,4 +1,4 @@
+-// +build amd64
++// +build arm
+ 
+ package docker
+ 
+diff --git a/reflink_copy_unsupported.go b/reflink_copy_unsupported.go
+index 271ed01..24510ec 100644
+--- a/reflink_copy_unsupported.go
++++ b/reflink_copy_unsupported.go
+@@ -1,4 +1,4 @@
+-// +build !linux !amd64
++// +build !linux !arm
+ 
+ package docker
+ 
+diff --git a/utils/uname_linux.go b/utils/uname_linux.go
+index 2f4afb4..fbe8311 100644
+--- a/utils/uname_linux.go
++++ b/utils/uname_linux.go
+@@ -1,4 +1,4 @@
+-// +build amd64
++// +build arm
+ 
+ package utils
+ 
+diff --git a/utils/uname_unsupported.go b/utils/uname_unsupported.go
+index 57b82ec..a08208c 100644
+--- a/utils/uname_unsupported.go
++++ b/utils/uname_unsupported.go
+@@ -1,4 +1,4 @@
+-// +build !linux !amd64
++// +build !linux !arm
+ 
+ package utils
+ 

@@ -3,7 +3,7 @@
 buildarch=18
 
 pkgname='docker'
-pkgver=0.7.5
+pkgver=0.8.0
 pkgrel=1
 pkgdesc='Pack, ship and run any application as a lightweight container'
 arch=('arm armv6h')
@@ -23,7 +23,7 @@ source=(
     'docker.service'
 )
 md5sums=('SKIP'
-         'e89c02ce9bb54d4bfe623607da67e86d'
+         'e8503eaf749d21868d63b7131c30f3de'
          '64ebb2c81553442656ef5fea90d6568e'
          '3f7ccab915fb1942f06e18946c2811d2')
 
